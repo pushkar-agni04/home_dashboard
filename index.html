@@ -141,6 +141,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
       <div class="wx-hourly" id="wxHourly"></div>
       <div class="wx-form"><input id="cityInput" placeholder="City name"><button onclick="fetchWeather()">Go</button></div>
       <div class="wx-err" id="wxErr"></div>
+      <div class="wx-err" id="wxUpdated" style="color:var(--sub)"></div>
       <div class="wx-manual" id="wxManual">
         <select id="manCond">
           <option value="☀️|Clear">☀️ Clear</option>
@@ -275,6 +276,9 @@ async function fetchWeather(){
       return `<div class="wx-hour"><div>${hr}</div><div class="hi">${hi}</div><div class="ht">${temp}°</div></div>`;
     }).join('');
     hrs.style.display='flex';
+    localStorage.setItem('familyCalendarCity',city);
+    const now=new Date();
+    document.getElementById('wxUpdated').textContent='Updated '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
   }catch(e){
     document.getElementById('wxDesc').textContent='Enter city';
     err.textContent='Live fetch blocked here. Set manually, or check once hosted (e.g. GitHub Pages):';
@@ -424,6 +428,13 @@ function delEvent(key,idx){
 load();tick();renderWeek();setInterval(tick,30000);
 document.getElementById('evName').addEventListener('keypress',e=>{if(e.key==='Enter')addEvent();});
 document.getElementById('cityInput').addEventListener('keypress',e=>{if(e.key==='Enter')fetchWeather();});
+
+const savedCity=localStorage.getItem('familyCalendarCity');
+if(savedCity){document.getElementById('cityInput').value=savedCity;fetchWeather();}
+setInterval(()=>{
+  const c=localStorage.getItem('familyCalendarCity');
+  if(c){document.getElementById('cityInput').value=c;fetchWeather();}
+},60*60*1000);
 </script>
 </body>
 </html>
