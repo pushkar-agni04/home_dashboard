@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Family Calendar</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f1419;--panel:#1a1f2a;--tile:#232b38;--border:#2d3748;--text:#e8eaed;--sub:#8b92a3}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+.dash{height:100vh;display:flex;flex-direction:column;padding:12px 16px;gap:10px;
+  padding-top:calc(12px + env(safe-area-inset-top,0));padding-bottom:calc(12px + env(safe-area-inset-bottom,0))}
+.top-row{display:flex;gap:12px;flex-shrink:0}
+.tile{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px}
+.clock-tile{flex:1;display:flex;gap:12px}
+.clock-left{flex-shrink:0;display:flex;flex-direction:column;justify-content:center;min-width:80px}
+.clock-time{font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.clock-date{font-size:.65rem;color:var(--sub);margin-top:2px}
+.today-col{flex:1;display:flex;flex-direction:column;min-width:0;border-left:1px solid var(--border);padding-left:12px}
+.today-label{font-size:.58rem;text-transform:uppercase;color:var(--sub);margin-bottom:4px;font-weight:700;letter-spacing:.4px}
+.today-list{max-height:56px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.today-item{font-size:.65rem;line-height:1.3;padding:2px 6px;border-radius:4px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.today-empty{font-size:.62rem;color:var(--sub)}
+.wx-tile{flex:1.4}
+.wx-top{display:flex;align-items:center;gap:8px}
+.wx-icon{font-size:1.6rem;line-height:1}
+.wx-temp{font-size:1.15rem;font-weight:600}
+.wx-desc{font-size:.65rem;color:var(--sub)}
+.wx-city{font-size:.6rem;color:var(--sub);margin-top:2px}
+.wx-form{display:flex;gap:5px;margin-top:6px}
+.wx-form input{flex:1;min-width:0;background:var(--tile);border:1px solid var(--border);border-radius:6px;padding:5px 7px;color:var(--text);font-size:.7rem}
+.wx-form button{background:var(--tile);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;cursor:pointer;font-size:.72rem}
+.wx-err{font-size:.58rem;color:#ffa726;margin-top:5px;line-height:1.3}
+.wx-manual{display:none;gap:5px;margin-top:6px;flex-wrap:wrap}
+.wx-manual select,.wx-manual input{background:var(--tile);border:1px solid var(--border);border-radius:6px;padding:5px 6px;color:var(--text);font-size:.65rem}
+.wx-manual input{width:56px}
+.wx-manual button{background:var(--tile);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 7px;cursor:pointer;font-size:.65rem}
+.wx-hourly{display:none;gap:8px;margin-top:8px;overflow-x:auto;padding-bottom:2px}
+.wx-hour{flex-shrink:0;display:flex;flex-direction:column;align-items:center;font-size:.55rem;color:var(--sub);gap:2px;min-width:32px}
+.wx-hour .hr-icon{font-size:.95rem}
+.wx-hour .hr-temp{font-size:.62rem;color:var(--text);font-weight:600}
+.cal{flex:1;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;min-height:0;min-width:0}
+.cal-head{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.cal-title{font-size:.95rem;font-weight:600}
+.cal-nav{display:flex;gap:6px}
+.nav-btn{background:var(--tile);border:1px solid var(--border);color:var(--text);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:.75rem}
+.nav-btn:hover{border-color:#4a90e2}
+.grid{flex:1;display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:auto repeat(6,1fr);gap:4px;min-height:0}
+.dh{text-align:center;font-size:.6rem;font-weight:700;color:var(--sub);padding:2px 0;text-transform:uppercase}
+.day{background:var(--tile);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:border-color .15s;
+  display:flex;flex-direction:column;padding:3px 4px;overflow:hidden;min-height:0}
+.day:hover{border-color:#4a90e2}
+.day.other{opacity:.28}
+.day.today{border-color:#4a90e2;background:rgba(74,144,226,.12)}
+.day-num{font-size:.68rem;color:var(--text);margin-bottom:1px;flex-shrink:0}
+.ev-line{font-size:.54rem;line-height:1.25;padding:0 3px;border-radius:3px;color:#fff;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;margin-bottom:1px;flex-shrink:0}
+.ev-time{font-size:.48rem;opacity:.85;margin-right:2px}
+.ev-more{font-size:.5rem;color:var(--sub)}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.modal.active{display:flex}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px;width:100%;max-width:400px;max-height:85vh;overflow-y:auto;position:relative}
+.modal-close{position:absolute;top:12px;right:12px;background:none;border:none;color:var(--sub);font-size:1.3rem;cursor:pointer}
+.modal-title{font-size:1rem;font-weight:600;margin-bottom:14px;padding-right:20px}
+.ev-item{display:flex;align-items:center;gap:9px;padding:8px;background:var(--tile);border-radius:7px;margin-bottom:7px}
+.dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.ev-body{flex:1;min-width:0}
+.ev-name{font-size:.85rem;font-weight:500}
+.ev-meta{font-size:.7rem;color:var(--sub)}
+.empty{font-size:.8rem;color:var(--sub);margin-bottom:10px}
+.form-row{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.form-row label{font-size:.68rem;font-weight:700;text-transform:uppercase;color:var(--sub);letter-spacing:.4px}
+.form-row input{background:var(--tile);border:1px solid var(--border);border-radius:6px;padding:8px 9px;color:var(--text);font-size:.85rem}
+.member-chips{display:flex;flex-wrap:wrap;gap:6px}
+.member-chip{display:flex;align-items:center;gap:5px;padding:5px 6px 5px 9px;border-radius:14px;background:var(--tile);
+  border:1px solid var(--border);font-size:.75rem;cursor:pointer}
+.member-chip.selected{border-color:#4a90e2;background:rgba(74,144,226,.18)}
+.member-chip .dot{width:9px;height:9px}
+.member-chip .del{margin-left:2px;color:var(--sub);font-size:.9rem;padding:0 2px;line-height:1}
+.member-chip .del:hover{color:#ef5350}
+.chip-add{width:26px;height:26px;border-radius:50%;background:var(--tile);border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:1rem}
+.new-member-row{display:none;gap:6px;margin-top:8px}
+.new-member-row input{flex:1;background:var(--tile);border:1px solid var(--border);border-radius:6px;padding:7px 9px;color:var(--text);font-size:.8rem}
+.new-member-row button{background:#4a90e2;color:#fff;border:none;border-radius:6px;padding:0 12px;cursor:pointer;font-size:.8rem}
+.add-ev-btn{width:100%;margin-top:12px;background:#4a90e2;color:#fff;border:none;border-radius:7px;padding:10px;font-size:.85rem;font-weight:600;cursor:pointer}
+.add-ev-btn:hover{background:#3a7bc8}
+.fam-del{background:none;border:none;color:var(--sub);cursor:pointer;font-size:1rem;padding:0 2px}
+.fam-del:hover{color:#ef5350}
+@media (max-width:760px),(orientation:portrait){
+  body{overflow:auto}
+  .dash{height:auto;min-height:100vh}
+  .top-row{flex-wrap:wrap}
+  .clock-tile{min-width:220px}
+  .wx-tile{min-width:220px}
+  .cal{min-height:420px}
+  .grid{grid-template-rows:auto repeat(6,minmax(46px,1fr))}
+}
+</style>
+</head>
+<body>
+<div class="dash">
+  <div class="top-row">
+    <div class="tile clock-tile">
+      <div class="clock-left">
+        <div class="clock-time" id="clock">00:00:00</div>
+        <div class="clock-date" id="date">--</div>
+      </div>
+      <div class="today-col">
+        <div class="today-label">Today</div>
+        <div class="today-list" id="todayList"></div>
+      </div>
+    </div>
+    <div class="tile wx-tile">
+      <div class="wx-top"><span class="wx-icon" id="wxIcon">🌤️</span>
+        <div><div class="wx-temp" id="wxTemp">--°</div><div class="wx-desc" id="wxDesc">Enter city</div><div class="wx-city" id="wxCity"></div></div>
+      </div>
+      <div class="wx-hourly" id="wxHourly"></div>
+      <div class="wx-form"><input id="cityInput" placeholder="City name"><button onclick="fetchWeather()">Go</button></div>
+      <div class="wx-err" id="wxErr"></div>
+      <div class="wx-manual" id="wxManual">
+        <select id="manCond">
+          <option value="☀️|Clear">☀️ Clear</option>
+          <option value="⛅|Partly cloudy">⛅ Partly cloudy</option>
+          <option value="☁️|Overcast">☁️ Overcast</option>
+          <option value="🌦️|Light rain">🌦️ Light rain</option>
+          <option value="🌧️|Rain">🌧️ Rain</option>
+          <option value="⛈️|Storm">⛈️ Storm</option>
+          <option value="❄️|Snow">❄️ Snow</option>
+          <option value="🌫️|Fog">🌫️ Fog</option>
+        </select>
+        <input type="number" id="manTemp" placeholder="Temp °">
+        <button onclick="setManualWeather()">Set</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cal">
+    <div class="cal-head">
+      <div class="cal-title" id="monthYear">--</div>
+      <div class="cal-nav">
+        <button class="nav-btn" onclick="prevMonth()">←</button>
+        <button class="nav-btn" onclick="goToday()">•</button>
+        <button class="nav-btn" onclick="nextMonth()">→</button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" id="modalDate">--</div>
+    <div id="evList"></div>
+    <div class="form-row"><label>Event name</label><input id="evName" placeholder="e.g. Dinner"></div>
+    <div class="form-row"><label>Time</label><input type="time" id="evTime"></div>
+    <div class="form-row"><label>Added by</label>
+      <div class="member-chips" id="memberChips"></div>
+      <div class="new-member-row" id="newMemberRow">
+        <input id="newMemberName" placeholder="Member name">
+        <button onclick="confirmNewMember()">Add</button>
+      </div>
+    </div>
+    <button class="add-ev-btn" onclick="addEvent()">Add event</button>
+  </div>
+</div>
+
+<script>
+const COLORS=['#4a90e2','#ef5350','#66bb6a','#ab47bc','#ffa726','#26a69a'];
+let cur=new Date(), selDate=null, selMemberId=null;
+let data={events:{},members:[]};
+
+function load(){
+  const s=localStorage.getItem('familyCalendarData');
+  if(s){data=JSON.parse(s);}
+  else{data.members=[{id:Date.now(),name:'You',color:COLORS[0]}];save();}
+}
+function save(){localStorage.setItem('familyCalendarData',JSON.stringify(data));}
+function todayKey(){return new Date().toISOString().split('T')[0];}
+
+function tick(){
+  const n=new Date();
+  document.getElementById('clock').textContent=n.toTimeString().slice(0,8);
+  document.getElementById('date').textContent=n.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+
+function renderToday(){
+  const key=todayKey();
+  const evs=(data.events[key]||[]).slice().sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+  const el=document.getElementById('todayList');
+  if(!evs.length){el.innerHTML='<div class="today-empty">No events today</div>';return;}
+  el.innerHTML=evs.map(e=>{
+    const mem=data.members.find(x=>x.id==e.memberId);
+    const t=e.time?e.time+' · ':'';
+    return `<div class="today-item" style="background:${mem?mem.color:'#555'}" onclick="openModal('${key}')">${t}${e.name}</div>`;
+  }).join('');
+}
+
+const WX={0:['☀️','Clear sky'],1:['🌤️','Mainly clear'],2:['⛅','Partly cloudy'],3:['☁️','Overcast'],
+  45:['🌫️','Fog'],48:['🌫️','Fog'],51:['🌦️','Light drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Dense drizzle'],
+  56:['🌧️','Freezing drizzle'],57:['🌧️','Freezing drizzle'],61:['🌧️','Slight rain'],63:['🌧️','Rain'],
+  65:['🌧️','Heavy rain'],66:['🌧️','Freezing rain'],67:['🌧️','Freezing rain'],71:['❄️','Slight snow'],
+  73:['❄️','Snow'],75:['❄️','Heavy snow'],77:['❄️','Snow grains'],80:['🌦️','Rain showers'],
+  81:['🌧️','Rain showers'],82:['⛈️','Violent showers'],85:['🌨️','Snow showers'],86:['🌨️','Snow showers'],
+  95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm hail'],99:['⛈️','Thunderstorm hail']};
+
+async function fetchWeather(){
+  const city=document.getElementById('cityInput').value.trim();
+  const err=document.getElementById('wxErr');
+  err.textContent='';
+  document.getElementById('wxManual').style.display='none';
+  document.getElementById('wxHourly').style.display='none';
+  if(!city){err.textContent='Enter a city';return;}
+  document.getElementById('wxDesc').textContent='Loading...';
+  try{
+    const geo=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`).then(r=>r.json());
+    if(!geo.results||!geo.results.length){err.textContent='City not found';document.getElementById('wxDesc').textContent='Enter city';return;}
+    const loc=geo.results[0];
+    const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&forecast_days=1&timezone=auto`).then(r=>r.json());
+    const code=w.current.weather_code;
+    const [icon,desc]=WX[code]||['🌡️','Unknown'];
+    document.getElementById('wxIcon').textContent=icon;
+    document.getElementById('wxTemp').textContent=Math.round(w.current.temperature_2m)+'°';
+    document.getElementById('wxDesc').textContent=desc;
+    document.getElementById('wxCity').textContent=`${loc.name}, ${loc.country}`;
+
+    const nowIso=w.current.time;
+    let idx=w.hourly.time.findIndex(t=>t>=nowIso);
+    if(idx<0)idx=0;
+    const hrs=document.getElementById('wxHourly');
+    hrs.innerHTML=w.hourly.time.slice(idx,idx+6).map((t,i)=>{
+      const hc=w.hourly.weather_code[idx+i];
+      const [hi]=WX[hc]||['🌡️'];
+      const temp=Math.round(w.hourly.temperature_2m[idx+i]);
+      const hr=new Date(t).toLocaleTimeString('en-US',{hour:'numeric'});
+      return `<div class="wx-hour"><div>${hr}</div><div class="hr-icon">${hi}</div><div class="hr-temp">${temp}°</div></div>`;
+    }).join('');
+    hrs.style.display='flex';
+  }catch(e){
+    document.getElementById('wxDesc').textContent='Enter city';
+    err.textContent='Live fetch blocked here. Set manually, or check this works once hosted (e.g. GitHub Pages):';
+    document.getElementById('wxManual').style.display='flex';
+  }
+}
+function setManualWeather(){
+  const [icon,desc]=document.getElementById('manCond').value.split('|');
+  const t=document.getElementById('manTemp').value;
+  document.getElementById('wxIcon').textContent=icon;
+  document.getElementById('wxDesc').textContent=desc;
+  document.getElementById('wxTemp').textContent=t?t+'°':'--°';
+  document.getElementById('wxCity').textContent=document.getElementById('cityInput').value.trim();
+}
+
+function renderMemberChips(){
+  const wrap=document.getElementById('memberChips');
+  wrap.innerHTML=data.members.map(m=>`
+    <div class="member-chip ${m.id===selMemberId?'selected':''}" onclick="selectMember(${m.id})">
+      <div class="dot" style="background:${m.color}"></div><span>${m.name}</span>
+      <span class="del" onclick="event.stopPropagation();delMember(${m.id})">×</span>
+    </div>`).join('') + `<button class="chip-add" onclick="toggleNewMember()">+</button>`;
+}
+function selectMember(id){selMemberId=id;renderMemberChips();}
+function delMember(id){
+  data.members=data.members.filter(m=>m.id!==id);
+  if(selMemberId===id)selMemberId=null;
+  save();renderMemberChips();renderCal();renderToday();
+}
+function toggleNewMember(){
+  const row=document.getElementById('newMemberRow');
+  row.style.display=row.style.display==='flex'?'none':'flex';
+}
+function confirmNewMember(){
+  const inp=document.getElementById('newMemberName');
+  const name=inp.value.trim();
+  if(!name)return;
+  const m={id:Date.now(),name,color:COLORS[data.members.length%COLORS.length]};
+  data.members.push(m);
+  selMemberId=m.id;
+  save();renderMemberChips();
+  inp.value='';
+  document.getElementById('newMemberRow').style.display='none';
+}
+
+function renderCal(){
+  const y=cur.getFullYear(),m=cur.getMonth();
+  document.getElementById('monthYear').textContent=cur.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const first=new Date(y,m,1);
+  const start=new Date(first);start.setDate(start.getDate()-first.getDay());
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{const h=document.createElement('div');h.className='dh';h.textContent=d;grid.appendChild(h);});
+  const cell=new Date(start);
+  const todayStr=new Date().toDateString();
+  for(let i=0;i<42;i++){
+    const el=document.createElement('div');
+    el.className='day';
+    if(cell.getMonth()!==m)el.classList.add('other');
+    if(cell.toDateString()===todayStr)el.classList.add('today');
+    const key=cell.toISOString().split('T')[0];
+    const evs=(data.events[key]||[]).slice().sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+    const shown=evs.slice(0,2).map(e=>{
+      const mem=data.members.find(x=>x.id==e.memberId);
+      const t=e.time?`<span class="ev-time">${e.time}</span>`:'';
+      return `<div class="ev-line" style="background:${mem?mem.color:'#555'}">${t}${e.name}</div>`;
+    }).join('');
+    const more=evs.length>2?`<div class="ev-more">+${evs.length-2} more</div>`:'';
+    el.innerHTML=`<div class="day-num">${cell.getDate()}</div>${shown}${more}`;
+    el.onclick=()=>openModal(key);
+    grid.appendChild(el);
+    cell.setDate(cell.getDate()+1);
+  }
+}
+
+function openModal(key){
+  selDate=key;
+  selMemberId=data.members.length?data.members[0].id:null;
+  const d=new Date(key);
+  document.getElementById('modalDate').textContent=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const evs=data.events[key]||[];
+  const list=document.getElementById('evList');
+  if(!evs.length){list.innerHTML='<div class="empty">No events yet</div>';}
+  else{
+    list.innerHTML=evs.map((e,i)=>{
+      const mem=data.members.find(x=>x.id==e.memberId);
+      return `<div class="ev-item"><div class="dot" style="background:${mem?mem.color:'#888'}"></div>
+        <div class="ev-body"><div class="ev-name">${e.name}</div>
+        <div class="ev-meta">${e.time||'No time'} · ${mem?mem.name:'Unknown'}</div></div>
+        <button class="fam-del" onclick="delEvent('${key}',${i})">×</button></div>`;
+    }).join('');
+  }
+  document.getElementById('evName').value='';
+  document.getElementById('evTime').value='';
+  document.getElementById('newMemberRow').style.display='none';
+  renderMemberChips();
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal(){document.getElementById('modal').classList.remove('active');selDate=null;}
+function addEvent(){
+  if(!selDate)return;
+  const name=document.getElementById('evName').value.trim();
+  const time=document.getElementById('evTime').value;
+  if(!name||!selMemberId){alert('Enter event name and pick a family member');return;}
+  if(!data.events[selDate])data.events[selDate]=[];
+  data.events[selDate].push({id:Date.now(),name,time,memberId:selMemberId});
+  save();renderCal();renderToday();openModal(selDate);
+}
+function delEvent(key,idx){
+  data.events[key].splice(idx,1);
+  if(!data.events[key].length)delete data.events[key];
+  save();renderCal();renderToday();openModal(key);
+}
+
+function prevMonth(){cur.setMonth(cur.getMonth()-1);renderCal();}
+function nextMonth(){cur.setMonth(cur.getMonth()+1);renderCal();}
+function goToday(){cur=new Date();renderCal();}
+
+load();tick();renderCal();renderToday();setInterval(tick,1000);
+document.getElementById('evName').addEventListener('keypress',e=>{if(e.key==='Enter')addEvent();});
+document.getElementById('cityInput').addEventListener('keypress',e=>{if(e.key==='Enter')fetchWeather();});
+</script>
+</body>
+</html>
